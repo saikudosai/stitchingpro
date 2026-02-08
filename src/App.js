@@ -1,0 +1,500 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Camera, CheckCircle, XCircle, ClipboardList, 
+  Database, Save, PlusCircle, Trash2, 
+  User, Palette, ChevronRight, Folder, 
+  ArrowLeft, X, Settings, Plus, Clock, Hash, Calendar, Check, Send, Edit2
+} from 'lucide-react';
+
+// --- KONFIGURASI GLOBAL ---
+const STORAGE_DATA_KEY = 'qc_stitching_data_v_vercel';
+const STORAGE_MASTER_KEY = 'qc_stitching_master_v_vercel';
+const GLOBAL_CHECK_POINTS = ['Material', 'SPI', 'JOIN', 'Posisi', 'Mock Up'];
+
+// Data Default sesuai permintaan user
+const DEFAULT_MASTER = [
+  {
+    id: 'master-54819',
+    name: '54819',
+    processes: [
+      "Join back pocket + lining", "Stick back pocket", "Bartack AB back pocket",
+      "Lapis back pocket ke back panel", "Lapis back ke lining", "Lapis divider",
+      "Join + stick gusset", "Join zipper ke lining front pocket", "Join zipper ke front pocket",
+      "Stick front pocket", "Lapis front pocket ke lining", "Stick keliling card pocket + refois",
+      "Lapis front + lining", "Helper masukan wall ke shoulder", "Bartack cincin + bartack ujung shoulder",
+      "Jahit zipper ke lining round", "Join zipper ke lining main entry", "Join zipper ke main entry",
+      "Stick main entry", "Lapis main entry", "Join bobok zipper ke main entry + jahit",
+      "Join front ke main entry", "Binding 25mm front", "Join main entry ke back",
+      "Binding 25mm back", "Stick kunci gusset AB", "Join divider", "Binding 25mm divider",
+      "Stick finish mid main entry"
+    ]
+  }
+];
+
+// --- MODAL PREVIEW GAMBAR ---
+const ImagePreviewModal = ({ imageUrl, onClose }) => {
+  if (!imageUrl) return null;
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={onClose}>
+      <button className="absolute top-6 right-6 text-white bg-white/10 p-3 rounded-full hover:bg-white/20 transition-colors">
+        <X size={28} />
+      </button>
+      <img src={imageUrl} alt="Preview" className="max-w-full max-h-[85vh] rounded-2xl shadow-2xl animate-in zoom-in duration-300" />
+    </div>
+  );
+};
+
+// --- KOMPONEN MASTER STYLE ---
+const MasterView = ({ masterStyles, setMasterStyles }) => {
+  const [newStyle, setNewStyle] = useState('');
+  const [procInput, setProcInput] = useState('');
+  const [tempProcesses, setTempProcesses] = useState([]);
+  const [editingMasterId, setEditingMasterId] = useState(null);
+
+  const addProcToTemp = () => {
+    if (!procInput.trim()) return;
+    setTempProcesses([...tempProcesses, procInput.trim()]);
+    setProcInput('');
+  };
+
+  const startEditMaster = (m) => {
+    setEditingMasterId(m.id);
+    setNewStyle(m.name);
+    setTempProcesses(m.processes);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const saveMaster = () => {
+    if (!newStyle || tempProcesses.length === 0) return alert("Harap isi Nama Style dan minimal 1 proses!");
+    if (editingMasterId) {
+      const updated = masterStyles.map(m => m.id === editingMasterId ? { ...m, name: newStyle, processes: tempProcesses } : m);
+      setMasterStyles(updated);
+      setEditingMasterId(null);
+    } else {
+      setMasterStyles([...masterStyles, { id: Date.now().toString(), name: newStyle, processes: tempProcesses }]);
+    }
+    setNewStyle('');
+    setTempProcesses([]);
+  };
+
+  return (
+    <div className="space-y-6 pb-32 animate-in fade-in">
+      <h2 className="text-2xl font-black text-slate-800 px-1 tracking-tight">
+        {editingMasterId ? 'EDIT MASTER' : 'MASTER STYLE'}
+      </h2>
+      
+      <div className="bg-white p-7 rounded-[2.5rem] shadow-sm border border-slate-200 space-y-5">
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-[0.2em]">Nama Style</label>
+          <input type="text" placeholder="Contoh: 54819" value={newStyle} onChange={e => setNewStyle(e.target.value)} className="w-full h-14 p-4 bg-slate-50 rounded-2xl border-none font-bold outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        
+        <div className="pt-4 border-t border-slate-100">
+          <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-[0.2em] block mb-2">Input Proses Manual</label>
+          <div className="flex gap-2">
+            <input type="text" placeholder="Ketik nama proses..." value={procInput} onChange={e => setProcInput(e.target.value)} onKeyPress={e => e.key === 'Enter' && addProcToTemp()} className="flex-1 h-14 p-4 bg-blue-50/50 rounded-2xl border-none font-bold outline-none" />
+            <button onClick={addProcToTemp} className="bg-blue-600 text-white w-14 h-14 rounded-2xl shadow-md active:scale-90 transition-all flex items-center justify-center shrink-0"><Plus size={24} /></button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2 max-h-60 overflow-y-auto p-1">
+          {tempProcesses.map((p, idx) => (
+            <div key={idx} className="bg-white border border-slate-200 px-4 py-2 rounded-xl text-[11px] font-bold text-slate-600 flex items-center gap-3 shadow-sm">
+              {p} <button onClick={() => setTempProcesses(tempProcesses.filter((_, i) => i !== idx))} className="text-red-400 p-0.5"><X size={14} /></button>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex gap-3 pt-4">
+           {editingMasterId && <button onClick={() => {setEditingMasterId(null); setNewStyle(''); setTempProcesses([]);}} className="flex-1 h-14 bg-slate-100 text-slate-500 rounded-2xl font-black text-xs uppercase tracking-widest">Batal</button>}
+           <button onClick={saveMaster} className="flex-[2] h-14 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all">
+             <Save size={18} /> {editingMasterId ? 'Update Master' : 'Simpan Master'}
+           </button>
+        </div>
+      </div>
+
+      <div className="space-y-3 px-1">
+        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Style Tersimpan</h3>
+        {masterStyles.map(m => (
+          <div key={m.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 flex justify-between items-center shadow-sm">
+            <div>
+              <p className="font-black text-slate-800 text-lg tracking-tight uppercase italic">{m.name}</p>
+              <p className="text-[10px] text-blue-500 font-black uppercase tracking-widest mt-0.5">{m.processes.length} Tahap Proses</p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => startEditMaster(m)} className="bg-slate-50 text-blue-600 p-3 rounded-xl hover:bg-blue-50 transition-colors"><Edit2 size={18} /></button>
+              <button onClick={() => setMasterStyles(masterStyles.filter(x => x.id !== m.id))} className="bg-slate-50 text-red-500 p-3 rounded-xl hover:bg-red-50 transition-colors"><Trash2 size={18} /></button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// --- TAMPILAN DATA (HOME) ---
+const HomeView = ({ groupedReports, setView, setSelectedStyle, deleteStyle, editReport }) => (
+  <div className="space-y-6 pb-32 animate-in fade-in">
+    <div className="flex justify-between items-center px-1">
+      <h2 className="text-2xl font-black text-slate-800 tracking-tight italic uppercase">DATA <span className="text-blue-600">LAPORAN</span></h2>
+      <button onClick={() => setView('create')} className="bg-blue-600 text-white p-3.5 rounded-full shadow-lg shadow-blue-200 active:scale-90 transition-all"><PlusCircle size={28} /></button>
+    </div>
+    {Object.keys(groupedReports).length === 0 ? (
+      <div className="bg-white p-16 rounded-[3rem] text-center border-2 border-dashed border-slate-200 mt-4">
+        <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+           <Database className="text-slate-300" size={40} />
+        </div>
+        <p className="text-slate-400 font-bold text-sm">Belum ada laporan QC terkumpul.</p>
+      </div>
+    ) : (
+      <div className="grid grid-cols-1 gap-4">
+        {Object.entries(groupedReports).map(([key, data]) => (
+          <div key={key} className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden hover:border-blue-300 transition-all animate-in slide-in-from-bottom-3">
+            <div className="flex items-center justify-between p-7">
+              <div className="flex items-center gap-5 cursor-pointer flex-1" onClick={() => { setSelectedStyle(key); setView('detail'); }}>
+                <div className="bg-blue-50 p-4.5 rounded-[1.7rem] text-blue-600 shadow-sm"><Palette size={28} /></div>
+                <div>
+                  <h3 className="font-black text-slate-800 text-lg leading-tight uppercase italic">{data.styleName}</h3>
+                  <p className="text-[11px] text-slate-400 font-bold uppercase mt-1 tracking-wider">Line {data.line} • {data.color} • {data.timePosition}</p>
+                  <div className="flex items-center gap-2 mt-2.5 text-blue-600 font-black text-[9px] uppercase tracking-[0.15em]">
+                    <Calendar size={12} /> {data.date} • {data.processes.length} PROSES
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col gap-4 pl-2">
+                <button onClick={() => editReport(key)} className="bg-slate-50 p-2.5 rounded-xl text-slate-300 hover:text-blue-600 transition-colors"><Edit2 size={20} /></button>
+                <button onClick={() => deleteStyle(key)} className="bg-slate-50 p-2.5 rounded-xl text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={20} /></button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+);
+
+// --- TAMPILAN INPUT ---
+const CreateView = ({ 
+  setView, inspectorName, setInspectorName, 
+  masterStyles, selectedMasterId, setSelectedMasterId,
+  inputLine, setInputLine,
+  inputColor, setInputColor,
+  inputTime, setInputTime,
+  selectedProcess, setSelectedProcess,
+  checkResults, handleStatusChange, handleCommentChange, handlePhotoUpload, 
+  handleSaveProcess, handleFinishSession, sessionProcesses, isSubmitting, isEditing
+}) => {
+  const currentMaster = masterStyles.find(m => m.id === selectedMasterId);
+  const isLocked = sessionProcesses.length > 0;
+
+  return (
+    <div className="pb-32 animate-in slide-in-from-right duration-300">
+      <div className="flex items-center justify-between mb-8 px-1">
+        <button onClick={() => setView('home')} className="flex items-center gap-2 text-slate-500 font-black text-xs uppercase tracking-[0.2em]"><ArrowLeft size={16} /> KEMBALI</button>
+        {isEditing && <span className="bg-blue-600 text-white text-[9px] font-black px-4 py-2 rounded-full uppercase tracking-[0.2em] shadow-lg shadow-blue-200">Mode Edit Aktif</span>}
+      </div>
+
+      <div className="space-y-8 px-1">
+        {/* FORM DATA HEADER */}
+        <div className={`bg-white p-8 rounded-[3rem] shadow-sm border border-slate-200 space-y-6 ${isLocked ? 'opacity-60 pointer-events-none' : ''}`}>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Nama Inspector</label>
+            <div className="relative">
+               <User className="absolute left-4 top-4.5 text-slate-300" size={18} />
+               <input type="text" value={inspectorName} onChange={e => setInspectorName(e.target.value)} className="w-full pl-12 h-14 bg-slate-50 rounded-2xl border-none font-bold outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ketik nama..." />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+             <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Line</label>
+                <div className="relative">
+                   <Hash className="absolute left-4 top-4.5 text-slate-300" size={18} />
+                   <input type="text" value={inputLine} onChange={e => setInputLine(e.target.value)} className="w-full pl-12 h-14 bg-slate-50 rounded-2xl border-none font-bold outline-none uppercase" placeholder="Line" />
+                </div>
+             </div>
+             <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Jam</label>
+                <div className="relative">
+                   <Clock className="absolute left-4 top-4.5 text-slate-300" size={18} />
+                   <select value={inputTime} onChange={e => setInputTime(e.target.value)} className="w-full h-14 pl-12 bg-slate-50 rounded-2xl border-none font-bold outline-none appearance-none cursor-pointer">
+                      <option value="First">First</option>
+                      <option value="Middle">Middle</option>
+                      <option value="Last">Last</option>
+                   </select>
+                </div>
+             </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Master Style</label>
+            <div className="relative">
+               <Folder className="absolute left-4 top-4.5 text-slate-300" size={18} />
+               <select value={selectedMasterId} onChange={e => setSelectedMasterId(e.target.value)} className="w-full h-14 pl-12 bg-slate-50 rounded-2xl border-none font-bold outline-none appearance-none cursor-pointer">
+                 <option value="">-- Pilih Style Produk --</option>
+                 {masterStyles.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+               </select>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Color</label>
+            <div className="relative">
+               <Palette className="absolute left-4 top-4.5 text-slate-300" size={18} />
+               <input type="text" value={inputColor} onChange={e => setInputColor(e.target.value)} className="w-full pl-12 h-14 bg-slate-50 rounded-2xl border-none font-bold outline-none uppercase" placeholder="Warna..." />
+            </div>
+          </div>
+        </div>
+
+        {/* PROSES KERJA */}
+        {currentMaster && (
+          <div className="space-y-6">
+            <div className="bg-blue-600 p-8 rounded-[3rem] shadow-xl shadow-blue-100 space-y-4">
+               <label className="text-[11px] font-black text-white/70 uppercase ml-2 tracking-[0.25em] italic">Proses</label>
+               <select value={selectedProcess} onChange={e => setSelectedProcess(e.target.value)} className="w-full h-14 p-4 bg-white text-blue-900 rounded-2xl border-none font-bold outline-none shadow-inner cursor-pointer">
+                  <option value="">-- Pilih Proses Kerja --</option>
+                  {currentMaster.processes.map(p => <option key={p} value={p}>{p}</option>)}
+               </select>
+            </div>
+
+            {selectedProcess && (
+              <div className="space-y-5 animate-in slide-in-from-bottom-5 duration-500">
+                {GLOBAL_CHECK_POINTS.map(point => (
+                  <div key={point} className="bg-white p-7 rounded-[2.5rem] shadow-sm border border-slate-100">
+                    <div className="flex justify-between items-center mb-6">
+                      <span className="font-black text-slate-700 tracking-tight text-lg italic">{point}</span>
+                      <div className="flex bg-slate-50 p-2 rounded-2xl gap-2">
+                        {['ok', 'nok'].map(s => (
+                          <button key={s} type="button" onClick={() => handleStatusChange(point, s)} className={`px-8 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${checkResults[point]?.status === s ? (s === 'ok' ? 'bg-green-600 text-white shadow-lg' : 'bg-red-600 text-white shadow-lg') : 'text-slate-300 hover:text-slate-500'}`}>
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {checkResults[point]?.status && (
+                      <div className="flex gap-4 pt-5 border-t border-slate-50 mt-2 animate-in fade-in zoom-in">
+                        <textarea placeholder="Catatan QC..." value={checkResults[point].comment || ''} onChange={e => handleCommentChange(point, e.target.value)} className="flex-1 p-4 bg-slate-50 rounded-2xl border-none text-xs h-24 outline-none focus:ring-1 focus:ring-slate-200 resize-none" />
+                        <label className="w-24 h-24 bg-blue-50 rounded-2xl flex flex-col items-center justify-center cursor-pointer border-2 border-dashed border-blue-200 overflow-hidden shrink-0 transition-all hover:bg-blue-100">
+                          {checkResults[point].photo ? <img src={checkResults[point].photo} className="w-full h-full object-cover" alt="prev" /> : <Camera size={28} className="text-blue-400" />}
+                          <input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handlePhotoUpload(point, e)} />
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                
+                <button type="button" onClick={handleSaveProcess} className="w-full h-18 rounded-[2.2rem] bg-blue-600 text-white font-black text-lg shadow-xl shadow-blue-200 flex items-center justify-center gap-3 active:scale-95 transition-all uppercase tracking-[0.2em]">
+                  <PlusCircle size={24} /> SIMPAN PROSES
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* DAFTAR ANTREAN SESI */}
+        {sessionProcesses.length > 0 && (
+          <div className="bg-slate-900 p-10 rounded-[3.5rem] shadow-2xl space-y-6">
+            <h3 className="text-[11px] font-black text-white/30 uppercase tracking-[0.3em] text-center border-b border-white/5 pb-5 italic">Sesi Berjalan</h3>
+            <div className="space-y-3 max-h-72 overflow-y-auto pr-2 custom-scrollbar">
+               {sessionProcesses.map((proc, idx) => (
+                 <div key={idx} className="flex justify-between items-center bg-white/5 p-5 rounded-[1.8rem] border border-white/10 animate-in fade-in slide-in-from-right-3">
+                    <div className="flex items-center gap-4 text-white">
+                       <CheckCircle size={20} className="text-green-500" />
+                       <span className="text-sm font-black tracking-tight uppercase italic">{proc.processName}</span>
+                    </div>
+                    <span className="text-[10px] text-white/20 font-mono">{proc.time}</span>
+                 </div>
+               ))}
+            </div>
+            <button type="button" disabled={isSubmitting} onClick={handleFinishSession} className="w-full h-18 rounded-[2.5rem] bg-green-500 text-slate-900 font-black text-xl shadow-xl shadow-green-900/40 flex items-center justify-center gap-4 active:scale-95 transition-all uppercase tracking-[0.2em] mt-6">
+              <Send size={28} /> {isSubmitting ? 'MENGIRIM...' : 'SELESAI & KIRIM'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// --- TAMPILAN DETAIL ---
+const DetailView = ({ selectedStyle, groupedReports, setView, openPreview, deleteProcess }) => {
+  const data = groupedReports[selectedStyle];
+  if (!data) return null;
+  return (
+    <div className="pb-32 animate-in slide-in-from-left duration-300 px-1">
+      <button onClick={() => setView('home')} className="flex items-center gap-2 text-slate-500 font-black mb-6 text-xs uppercase tracking-[0.2em] px-2"><ArrowLeft size={16} /> KEMBALI</button>
+      <div className="bg-slate-900 text-white p-10 rounded-[3.5rem] shadow-2xl mb-10 relative overflow-hidden">
+        <h2 className="text-3xl font-black tracking-tighter leading-tight uppercase italic relative z-10">{data.styleName}</h2>
+        <p className="text-base font-bold text-blue-400 uppercase tracking-[0.2em] mt-2 relative z-10">Line {data.line} • {data.color} • {data.timePosition}</p>
+        <div className="flex justify-between mt-10 border-t border-white/10 pt-7 relative z-10">
+          <div className="flex flex-col">
+             <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.15em]">Inspector: {data.inspector}</p>
+             <p className="text-[11px] text-blue-400 font-black uppercase mt-1 tracking-widest italic">{data.date}</p>
+          </div>
+          <Database className="absolute -right-10 -bottom-10 text-white/5 rotate-12" size={200} />
+        </div>
+      </div>
+      <div className="space-y-8">
+        {data.processes.map(proc => (
+          <div key={proc.id} className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
+            <div className="p-7 bg-slate-50 flex justify-between items-center border-b border-slate-100">
+              <span className="font-black text-base text-slate-700 uppercase tracking-tight italic">{proc.processName}</span>
+              <div className="flex items-center gap-5">
+                <span className="text-[11px] font-mono text-slate-400 font-bold">{proc.time}</span>
+                <button onClick={() => deleteProcess(selectedStyle, proc.id)} className="bg-white text-slate-200 hover:text-red-500 p-2.5 rounded-xl transition-colors shadow-sm"><Trash2 size={18} /></button>
+              </div>
+            </div>
+            <div className="p-7 space-y-4">
+              {GLOBAL_CHECK_POINTS.map(p => (
+                <div key={p} className="p-5 bg-slate-50/50 rounded-[2rem] border border-slate-100">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">{p}</span>
+                    <span className={`text-[10px] font-black px-5 py-2 rounded-full ${proc.results[p].status === 'ok' ? 'bg-green-100 text-green-700 border border-green-200 shadow-sm shadow-green-50' : 'bg-red-100 text-red-700 border border-red-200 shadow-sm shadow-red-50'}`}>
+                      {proc.results[p].status?.toUpperCase()}
+                    </span>
+                  </div>
+                  {(proc.results[p].photo || proc.results[p].comment) && (
+                    <div className="mt-5 flex gap-5 pt-5 border-t border-slate-100 items-start">
+                      {proc.results[p].photo && <img src={proc.results[p].photo} onClick={() => openPreview(proc.results[p].photo)} className="w-20 h-20 rounded-[1.5rem] shadow-md cursor-pointer border-4 border-white object-cover hover:scale-105 transition-transform" alt="qc-capture" />}
+                      <p className="text-[11px] text-slate-400 italic font-medium leading-relaxed py-1 flex-1">"{proc.results[p].comment || 'Tidak ada catatan khusus'}"</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// --- KOMPONEN UTAMA (APP) ---
+export default function App() {
+  const [view, setView] = useState('home'); 
+  const [groupedReports, setGroupedReports] = useState({});
+  const [masterStyles, setMasterStyles] = useState([]);
+  const [selectedStyle, setSelectedStyle] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
+  
+  // States
+  const [inspectorName, setInspectorName] = useState('');
+  const [selectedMasterId, setSelectedMasterId] = useState('');
+  const [inputLine, setInputLine] = useState('');
+  const [inputColor, setInputColor] = useState('');
+  const [inputTime, setInputTime] = useState('First');
+  const [selectedProcess, setSelectedProcess] = useState('');
+  const [checkResults, setCheckResults] = useState({});
+  const [sessionProcesses, setSessionProcesses] = useState([]); 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingKey, setEditingKey] = useState(null);
+
+  useEffect(() => {
+    const d = localStorage.getItem(STORAGE_DATA_KEY);
+    const m = localStorage.getItem(STORAGE_MASTER_KEY);
+    if (d) setGroupedReports(JSON.parse(d));
+    if (m) {
+      setMasterStyles(JSON.parse(m));
+    } else {
+      setMasterStyles(DEFAULT_MASTER);
+    }
+  }, []);
+
+  useEffect(() => { localStorage.setItem(STORAGE_DATA_KEY, JSON.stringify(groupedReports)); }, [groupedReports]);
+  useEffect(() => { localStorage.setItem(STORAGE_MASTER_KEY, JSON.stringify(masterStyles)); }, [masterStyles]);
+
+  useEffect(() => {
+    const initial = {};
+    GLOBAL_CHECK_POINTS.forEach(p => initial[p] = { status: null, comment: '', photo: null });
+    setCheckResults(initial);
+  }, [selectedProcess]);
+
+  const handleStatusChange = (point, s) => setCheckResults(prev => ({ ...prev, [point]: { ...prev[point], status: s } }));
+  const handleCommentChange = (p, c) => setCheckResults(prev => ({ ...prev, [p]: { ...prev[p], comment: c } }));
+  const handlePhotoUpload = (p, e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setCheckResults(prev => ({ ...prev, [p]: { ...prev[p], photo: reader.result } }));
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveProcess = () => {
+    if (!inspectorName || !selectedMasterId || !inputLine || !inputColor || !selectedProcess) return alert("Metadata harus diisi lengkap!");
+    if (GLOBAL_CHECK_POINTS.some(p => !checkResults[p].status)) return alert("Checklist OK/NOK belum lengkap!");
+    const newProc = { id: Date.now(), processName: selectedProcess, time: new Date().toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }), results: JSON.parse(JSON.stringify(checkResults)) };
+    setSessionProcesses([...sessionProcesses, newProc]);
+    setSelectedProcess('');
+  };
+
+  const handleFinishSession = () => {
+    if (sessionProcesses.length === 0) return alert("Belum ada proses tersimpan!");
+    setIsSubmitting(true);
+    const master = masterStyles.find(m => m.id === selectedMasterId);
+    const reportKey = editingKey || `${inputLine}_${master.name}_${inputColor}_${inputTime}_${Date.now()}`;
+    setTimeout(() => {
+      setGroupedReports(prev => ({ ...prev, [reportKey]: { styleName: master.name, color: inputColor, line: inputLine, timePosition: inputTime, inspector: inspectorName, date: editingKey ? prev[editingKey].date : new Date().toLocaleDateString('id-ID'), processes: sessionProcesses } }));
+      setIsSubmitting(false); setSessionProcesses([]); setEditingKey(null); setSelectedProcess(''); setSelectedMasterId(''); setInputColor(''); setInputLine(''); setInspectorName('');
+      setView('home');
+    }, 600);
+  };
+
+  const editReport = (key) => {
+    const report = groupedReports[key];
+    const master = masterStyles.find(m => m.name === report.styleName);
+    if (!master) return alert("Master Style asli sudah dihapus!");
+    setEditingKey(key); setInspectorName(report.inspector); setInputLine(report.line); setInputColor(report.color); setInputTime(report.timePosition); setSelectedMasterId(master.id); setSessionProcesses(report.processes);
+    setView('create');
+  };
+
+  const deleteStyle = (n) => { if(confirm("Hapus seluruh laporan ini?")) { const d = {...groupedReports}; delete d[n]; setGroupedReports(d); } };
+  const deleteProcess = (sn, pid) => {
+    const d = {...groupedReports}; d[sn].processes = d[sn].processes.filter(p => p.id !== pid);
+    if(d[sn].processes.length === 0) delete d[sn];
+    setGroupedReports(d); if(!d[sn]) setView('home');
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20 overflow-x-hidden antialiased select-none">
+      <ImagePreviewModal imageUrl={previewImage} onClose={() => setPreviewImage(null)} />
+      
+      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 p-5 sticky top-0 z-40 flex justify-between items-center shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="bg-blue-600 p-2.5 rounded-2xl text-white shadow-lg shadow-blue-200"><ClipboardList size={22} /></div>
+          <h1 className="font-black text-2xl tracking-tighter uppercase italic leading-none">STITCHING<span className="text-blue-600">PRO</span></h1>
+        </div>
+        <div className="flex items-center gap-2 bg-green-50 px-4 py-2 rounded-full border border-green-100 shadow-inner">
+          <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+          <span className="text-[10px] font-black text-green-700 uppercase tracking-widest leading-none">Lokal Aktif</span>
+        </div>
+      </header>
+
+      <main className="max-w-md mx-auto p-5">
+        {view === 'home' && <HomeView groupedReports={groupedReports} setView={setView} setSelectedStyle={setSelectedStyle} deleteStyle={deleteStyle} editReport={editReport} />}
+        {view === 'master' && <MasterView masterStyles={masterStyles} setMasterStyles={setMasterStyles} />}
+        {view === 'create' && <CreateView 
+          setView={setView} inspectorName={inspectorName} setInspectorName={setInspectorName}
+          masterStyles={masterStyles} selectedMasterId={selectedMasterId} setSelectedMasterId={setSelectedMasterId}
+          inputLine={inputLine} setInputLine={setInputLine}
+          inputColor={inputColor} setInputColor={setInputColor}
+          inputTime={inputTime} setInputTime={setInputTime}
+          selectedProcess={selectedProcess} setSelectedProcess={setSelectedProcess}
+          checkResults={checkResults} handleStatusChange={handleStatusChange} handleCommentChange={handleCommentChange} handlePhotoUpload={handlePhotoUpload}
+          handleSaveProcess={handleSaveProcess} handleFinishSession={handleFinishSession}
+          sessionProcesses={sessionProcesses} isSubmitting={isSubmitting} isEditing={!!editingKey}
+        />}
+        {view === 'detail' && <DetailView selectedStyle={selectedStyle} groupedReports={groupedReports} setView={setView} openPreview={setPreviewImage} deleteProcess={deleteProcess} />}
+      </main>
+
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-5 md:hidden flex justify-around items-center z-50 shadow-[0_-15px_40px_rgba(0,0,0,0.06)] rounded-t-[3rem]">
+        <button onClick={() => { setView('home'); setEditingKey(null); }} className={`flex flex-col items-center gap-2 flex-1 transition-all ${view === 'home' || view === 'detail' ? 'text-blue-600 scale-110 font-black' : 'text-slate-300'}`}>
+          <Database size={26} /><span className="text-[11px] uppercase tracking-tighter font-black">Data</span>
+        </button>
+        <button onClick={() => setView('master')} className={`flex flex-col items-center gap-2 flex-1 transition-all ${view === 'master' ? 'text-blue-600 scale-110 font-black' : 'text-slate-300'}`}>
+          <Settings size={26} /><span className="text-[11px] uppercase tracking-tighter font-black">Master</span>
+        </button>
+        <button onClick={() => { setView('create'); if(!editingKey) {setSessionProcesses([]); setEditingKey(null); setSelectedProcess(''); setSelectedMasterId(''); setInputColor(''); setInputLine(''); setInspectorName('');}}} className={`flex flex-col items-center gap-2 flex-1 transition-all ${view === 'create' ? 'text-blue-600 scale-110 font-black' : 'text-slate-300'}`}>
+          <PlusCircle size={26} /><span className="text-[11px] uppercase tracking-tighter font-black">Input</span>
+        </button>
+      </nav>
+    </div>
+  );
+}
